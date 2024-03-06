@@ -1,0 +1,308 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL_DOCEASE_ER")
+}
+
+enum Role {
+  patient
+  doctor
+  admin
+}
+
+enum Gender {
+  male
+  female
+}
+
+model User {
+  userId                 String            @id @default(uuid())
+  firstName              String            @db.Text
+  lastName               String            @db.Text
+  email                  String            @unique @db.Text
+  phoneNumber            String
+  gender                 Gender
+  role                   Role              @default(patient)
+  password               String            @db.Text
+  imageUrl               String?           @db.Text
+  imagePath              String?           @db.Text
+  passwordResetToken     String?           @db.Text
+  passwordResetExpiresAt DateTime?
+  createdAt              DateTime          @default(now())
+  updatedAt              DateTime?         @updatedAt
+  patient                Appointment[]     @relation("patient")
+  doctor                 Appointment[]     @relation("doctor")
+  accessTokens           AccessToken[]
+  schedule               Schedule[]
+  medicalFile            MedicalFile[]
+  medicalRecord          MedicalRecord[]
+  mentalHealth           MentalHealth[]
+  notification           Notification[]
+  onlineStatus           OnlineStatus?
+  userDevice             Device[]
+  host                   VideoConference[] @relation("host")
+  attendee               VideoConference[] @relation("attendee")
+  sender                 Chat[]            @relation("sender")
+  recipient              Chat[]            @relation("recipient")
+  doctorsPatientDoctor   DoctorsPatient[]  @relation("doctor")
+  doctorsPatientPatient  DoctorsPatient[]  @relation("patient")
+
+  @@index([userId])
+  @@index([email])
+  @@index([role])
+  @@index([passwordResetToken])
+  @@map("_users")
+}
+
+model AccessToken {
+  tokenId   String    @id @default(uuid())
+  User      User      @relation(fields: [userId], references: [userId])
+  userId    String
+  token     String    @db.Text
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+
+  @@index([tokenId])
+  @@index([userId])
+  @@index([token])
+  @@map("_access_tokens")
+}
+
+model OnlineStatus {
+  onlineStatusId String    @id @default(uuid())
+  User           User      @relation(fields: [userId], references: [userId])
+  userId         String    @unique
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime? @updatedAt
+
+  @@index([onlineStatusId])
+  @@index([userId])
+  @@map("_online_statuses")
+}
+
+model Appointment {
+  appointmentId   String              @id @default(uuid())
+  patient         User                @relation("patient", fields: [patientId], references: [userId])
+  patientId       String
+  doctor          User                @relation("doctor", fields: [doctorId], references: [userId])
+  doctorId        String
+  subject         String              @db.Text
+  startsAt        DateTime
+  endsAt          DateTime
+  doctorsComment  String?
+  patientsComment String?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime?           @updatedAt
+  statuses        AppointmentStatus[]
+
+  @@index([appointmentId])
+  @@index([patientId])
+  @@index([doctorId])
+  @@map("_appointments")
+}
+
+enum AppointmentStatusEnum {
+  pending
+  rescheduled
+  edited
+  approved
+  cancelled
+  done
+}
+
+model AppointmentStatus {
+  appointmentStatusId String                @id @default(uuid())
+  appointment         Appointment           @relation(fields: [appointmentId], references: [appointmentId])
+  appointmentId       String
+  status              AppointmentStatusEnum @default(pending)
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime?             @updatedAt
+
+  @@index([appointmentStatusId])
+  @@index([appointmentId])
+  @@index([status])
+  @@map("_appointment_statuses")
+}
+
+enum Weekday {
+  sunday
+  monday
+  tuesday
+  wednesday
+  thursday
+  friday
+  saturday
+}
+
+model Schedule {
+  scheduleId   String         @id @default(uuid())
+  user         User           @relation(fields: [userId], references: [userId])
+  userId       String
+  weekday      Weekday
+  weekdayNum   Int
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime?      @updatedAt
+  scheduleTime ScheduleTime[]
+
+  @@index([scheduleId])
+  @@index([userId])
+  @@index([weekday])
+  @@map("_schedules")
+}
+
+model ScheduleTime {
+  scheduleTimeId String    @id @default(uuid())
+  schedule       Schedule  @relation(fields: [scheduleId], references: [scheduleId])
+  scheduleId     String
+  start          String
+  end            String
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime? @updatedAt
+
+  @@index([scheduleTimeId])
+  @@index([scheduleId])
+  @@map("_schedule_times")
+}
+
+model MedicalFile {
+  medicalFileId String    @id @default(uuid())
+  User          User      @relation(fields: [userId], references: [userId])
+  userId        String
+  name          String
+  path          String
+  url           String
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime? @updatedAt
+
+  @@index([medicalFileId])
+  @@index([userId])
+  @@map("_medical_files")
+}
+
+model MedicalRecord {
+  medicalRecordId String    @id @default(uuid())
+  User            User      @relation(fields: [userId], references: [userId])
+  userId          String
+  healthStatus    String
+  medication      String
+  illness         String
+  diet            String
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime? @updatedAt
+
+  @@index([medicalRecordId])
+  @@index([userId])
+  @@map("_medical_records")
+}
+
+// Mental health assessment model
+model MentalHealth {
+  mentalHealthId    String    @id @default(uuid())
+  User              User      @relation(fields: [userId], references: [userId])
+  userId            String
+  answeredQuestions Json
+  aiResponse        Json
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime? @updatedAt
+
+  @@index([mentalHealthId])
+  @@index([userId])
+  @@map("_mental_health")
+}
+
+model Chat {
+  messageId   String    @id @default(uuid())
+  sender      User      @relation("sender", fields: [senderId], references: [userId])
+  senderId    String
+  recipient   User      @relation("recipient", fields: [recipientId], references: [userId])
+  recipientId String
+  chatRoomId  String
+  message     String    @db.Text
+  isDelivered Boolean   @default(false)
+  isRead      Boolean   @default(false)
+  createdAt   DateTime
+  updatedAt   DateTime? @updatedAt
+
+  @@index([senderId])
+  @@index([recipientId])
+  @@index([chatRoomId])
+  @@map("_chats")
+}
+
+model Notification {
+  notificationId String    @id @default(uuid())
+  User           User      @relation(fields: [userId], references: [userId])
+  userId         String
+  message        String    @db.Text
+  link           String?   @db.Text
+  isRead         Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime? @updatedAt
+
+  @@index([notificationId])
+  @@index([userId])
+  @@map("_notifications")
+}
+
+model Device {
+  deviceId       String    @id @default(uuid())
+  User           User      @relation(fields: [userId], references: [userId])
+  userId         String
+  deviceToken    String    @unique @db.Text
+  devicePlatform String
+  isDisable      Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+  updatedAt      DateTime? @updatedAt
+
+  @@index([deviceId])
+  @@index([deviceToken])
+  @@index([userId])
+  @@map("_devices")
+}
+
+model VideoConference {
+  videoConferenceId String    @id @default(uuid())
+  Host              User      @relation("host", fields: [hostId], references: [userId])
+  hostId            String
+  Attendee          User      @relation("attendee", fields: [attendeeId], references: [userId])
+  attendeeId        String
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime? @updatedAt
+
+  @@index([videoConferenceId])
+  @@index([hostId])
+  @@index([attendeeId])
+  @@map("_video_conferencies")
+}
+
+model DoctorsPatient {
+  doctorsPatientId String    @id @default(uuid())
+  Doctor           User      @relation("doctor", fields: [doctorId], references: [userId])
+  doctorId         String
+  Patient          User      @relation("patient", fields: [patientId], references: [userId])
+  patientId        String
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime? @updatedAt
+
+  @@index([doctorsPatientId])
+  @@index([doctorId])
+  @@index([patientId])
+  @@map("_doctors_patients")
+}
+
+// PRISMA COMMNANDS 
+
+// INITIALIZE PRISMA
+// npx prisma init --datasource-provider postgresql
+
+// APPLY CHANGES TO ACTUAL DATABASE 
+// npx prisma migrate dev --name test
+
+// GENERATE THE CLIENT TO INTERACT WITH THE DATABASE
+// npx prisma generate
+
+// TO EXPLORE AND MANUPLATE DATA USE PRISMA STUDIO
+// npx prisma studio
