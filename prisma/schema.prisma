@@ -49,12 +49,26 @@ model User {
   recipient              Chat[]            @relation("recipient")
   doctorsPatientDoctor   DoctorsPatient[]  @relation("doctor")
   doctorsPatientPatient  DoctorsPatient[]  @relation("patient")
+  twoFA                  TwoFA[]
 
   @@index([userId])
   @@index([email])
   @@index([role])
   @@index([passwordResetToken])
   @@map("_users")
+}
+
+model TwoFA {
+  twofaId   String    @id @default(uuid())
+  User      User      @relation(fields: [userId], references: [userId])
+  userId    String
+  isEnabled Boolean   @default(false)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime? @updatedAt
+
+  @@index([twofaId])
+  @@index([userId])
+  @@map("_two_fa")
 }
 
 model AccessToken {
